@@ -4,6 +4,17 @@
 import os
 from urllib.parse import quote_plus
 
+# Reads the .env file so the database url and secret key are available as
+# environment variables while working locally. python-dotenv is not in
+# requirements.txt because Render sets the real environment variables itself,
+# so the import is wrapped in a try/except.
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass
+
 # quote_plus escapes characters like @ so they do not break the URL
 password = quote_plus(os.environ.get("MYSQL_PASSWORD", ""))
 
@@ -27,3 +38,13 @@ class TestingConfig:
     # the rate limits would start returning 429 partway through the tests,
     # so they get turned off while testing
     RATELIMIT_ENABLED = False
+
+
+class ProductionConfig:
+    # the live database on Render. The url is kept in the .env file locally and
+    # set as an environment variable on Render, so it never ends up on GitHub.
+    SQLALCHEMY_DATABASE_URI = os.environ.get("SQLALCHEMY_DATABASE_URI")
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    CACHE_TYPE = "SimpleCache"
+    # debug mode off, because it shows the code to anyone who hits an error
+    DEBUG = False

@@ -1,6 +1,7 @@
 # Token helpers. encode_token() makes a JWT for a customer, and the
 # token_required decorator protects routes by checking that token.
 
+import os
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 
@@ -8,7 +9,10 @@ from flask import request, jsonify
 from jose import jwt
 import jose
 
-SECRET_KEY = "a super secret, secret key"
+# The real key is an environment variable so it is not published on GitHub.
+# The fallback is there for the GitHub Actions pipeline, which has no
+# SECRET_KEY environment variable set, and for running the tests.
+SECRET_KEY = os.environ.get("SECRET_KEY") or "a super secret, secret key"
 
 
 def encode_token(customer_id):

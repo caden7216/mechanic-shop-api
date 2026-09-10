@@ -38,4 +38,4 @@ for (table,) in cursor.fetchall():
 cursor.close()
 connection.close()
 
-print("\nAll set. Now run:  python app.py")
+print("\nAll set. Now run:  python run_local.py")

@@ -42,7 +42,7 @@ lists them.
 ### 3. Run the app
 
 ```bash
-python app.py
+python run_local.py
 ```
 
 It asks for the password again unless you set it first:
@@ -58,14 +58,23 @@ The API runs at `http://127.0.0.1:5001`.
 
 > Why 5001 and not 5000? On macOS the AirPlay Receiver already listens on port
 > 5000 and answers every request with a 403, so Flask cannot use it. If you are
-> not on a Mac you can change the port back in `app.py`.
+> not on a Mac you can change the port back in `run_local.py`.
+
+`flask_app.py` is the deployed version of the same app. It uses
+`ProductionConfig` and has no `app.run()`, because Render runs it with gunicorn
+instead of Flask's development server.
 
 ## Project Structure
 
 ```
 mechanic-shop-api/
-├── app.py                       # creates the app and runs it
-├── config.py                    # DevelopmentConfig with the database URI
+├── flask_app.py                 # entry point for the deployed app (gunicorn)
+├── run_local.py                 # entry point for running locally on MySQL
+├── config.py                    # Development, Testing and Production configs
+├── .env.example                 # the environment variables you need to set
+├── .github/
+│   └── workflows/
+│       └── main.yaml            # the build, test and deploy pipeline
 ├── setup_db.py                  # one-time database + table setup
 ├── test_endpoints.py            # runs every endpoint against SQLite
 ├── mechanic_shop.postman_collection.json
@@ -270,6 +279,75 @@ In Postman: **Import** → drop the file in → start the app → send.
 
 Suggested order: create a customer → **Login** (the token saves itself) → create
 mechanics → create parts → create a ticket → edit/assign/add-part.
+
+## Deployment
+
+The API is deployed on **Render** with a hosted **PostgreSQL** database.
+
+| | |
+| --- | --- |
+| Live API | _add the Render url here after deploying_ |
+| Live docs | _live url_ + `/api/docs` |
+
+### How it is set up
+
+- **`flask_app.py`** is the entry point Render runs. It builds the app with
+  `ProductionConfig` and has no `app.run()`, because **gunicorn** is the web
+  server in production, not Flask's development server.
+- **`ProductionConfig`** in `config.py` reads the database url out of the
+  `SQLALCHEMY_DATABASE_URI` environment variable and turns debug mode off.
+- **`psycopg2-binary`** is the PostgreSQL adapter. The MySQL adapter does not
+  work on Postgres.
+- Secrets live in a **`.env`** file, which is in `.gitignore` so it never
+  reaches GitHub. `.env.example` shows which variables are needed.
+- **`python-dotenv`** reads that file locally. It is deliberately **not** in
+  `requirements.txt`, because Render sets the real environment variables
+  itself, so `config.py` imports it inside a `try`/`except ImportError`.
+
+### Environment variables
+
+Both of these get set in the Render dashboard as well as in the local `.env`:
+
+| Variable | What it is |
+| --- | --- |
+| `SQLALCHEMY_DATABASE_URI` | The External Database URL from the Render PostgreSQL page |
+| `SECRET_KEY` | The key used to sign the JWTs |
+
+The start command on Render is:
+
+```bash
+gunicorn flask_app:app
+```
+
+## CI/CD Pipeline
+
+`.github/workflows/main.yaml` runs on every push to `main` or `master` and has
+three jobs that run one after the other:
+
+```
+build  →  test  →  deploy
+```
+
+| Job | What it does | Runs when |
+| --- | --- | --- |
+| `build` | Checks out the code, sets up Python 3.12, makes a virtual environment, installs `requirements.txt` | every push |
+| `test` | Same setup, then `python -m unittest discover -s tests -p 'test_*.py'` | `needs: build` |
+| `deploy` | Same setup, then triggers a Render deploy with `johnbeynon/render-deploy-action` | `needs: test` |
+
+Because `deploy` has `needs: test`, a commit that breaks the tests **never
+reaches the live site**. Auto-Deploy is turned **off** in the Render service
+settings so that Render does not redeploy on its own and skip the tests.
+
+The deploy job uses two repository secrets, set in
+**GitHub → Settings → Secrets and variables → Actions**:
+
+| Secret | Where it comes from |
+| --- | --- |
+| `SERVICE_ID` | The Render service id, e.g. `srv-abc123...` — in the service URL or next to Deploy Hook in settings |
+| `RENDER_API_KEY` | Render → Profile Pic → Account Settings → API Keys |
+
+The tests in the pipeline run against `TestingConfig`, which uses SQLite, so
+the runner never needs a database or any of the secrets.
 
 ## API Documentation (Swagger)
 

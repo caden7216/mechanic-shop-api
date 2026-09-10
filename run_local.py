@@ -1,4 +1,4 @@
-# Entry point. Run with:  python app.py
+# Entry point for running the API locally on MySQL. Run with:  python run_local.py
 
 import os
 import getpass
