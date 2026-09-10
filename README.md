@@ -48,7 +48,11 @@ export MYSQL_PASSWORD='your_mysql_password'
 Use **single quotes** so the shell does not mangle special characters. The
 password is never written into the code, so it cannot end up on GitHub.
 
-The API runs at `http://127.0.0.1:5000`.
+The API runs at `http://127.0.0.1:5001`.
+
+> Why 5001 and not 5000? On macOS the AirPlay Receiver already listens on port
+> 5000 and answers every request with a 403, so Flask cannot use it. If you are
+> not on a Mac you can change the port back in `app.py`.
 
 ## Project Structure (Application Factory Pattern)
 
