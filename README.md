@@ -286,8 +286,8 @@ The API is deployed on **Render** with a hosted **PostgreSQL** database.
 
 | | |
 | --- | --- |
-| Live API | _add the Render url here after deploying_ |
-| Live docs | _live url_ + `/api/docs` |
+| Live API | https://mechanic-shop-api-1gfq.onrender.com |
+| Live docs | https://mechanic-shop-api-1gfq.onrender.com/api/docs |
 
 ### How it is set up
 
@@ -312,6 +312,10 @@ Both of these get set in the Render dashboard as well as in the local `.env`:
 | --- | --- |
 | `SQLALCHEMY_DATABASE_URI` | The External Database URL from the Render PostgreSQL page |
 | `SECRET_KEY` | The key used to sign the JWTs |
+
+> The free instance spins down when it is idle, so the first request after a
+> quiet period takes about 50 seconds to wake up. Everything after that is
+> fast.
 
 The start command on Render is:
 
