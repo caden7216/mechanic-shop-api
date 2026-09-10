@@ -26,6 +26,17 @@ service_mechanic = Table(
 )
 
 
+# Junction table for the many-to-many between service tickets and inventory
+# parts. One ticket can need many parts, and the same part gets used on many
+# tickets.
+ticket_inventory = Table(
+    "ticket_inventory",
+    Base.metadata,
+    Column("ticket_id", ForeignKey("service_tickets.id"), primary_key=True),
+    Column("inventory_id", ForeignKey("inventory.id"), primary_key=True),
+)
+
+
 class Customer(Base):
     __tablename__ = "customers"
 
@@ -33,10 +44,13 @@ class Customer(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     email: Mapped[str] = mapped_column(String(150), nullable=False, unique=True)
     phone: Mapped[str] = mapped_column(String(20), nullable=False)
+    password: Mapped[str] = mapped_column(String(255), nullable=False)
 
-    # one customer can have many service tickets
+    # one customer can have many service tickets.
+    # cascade means deleting a customer also deletes their tickets, so we do not
+    # leave tickets behind pointing at a customer that is gone.
     service_tickets: Mapped[List["ServiceTicket"]] = relationship(
-        back_populates="customer"
+        back_populates="customer", cascade="all, delete"
     )
 
 
@@ -55,6 +69,19 @@ class Mechanic(Base):
     )
 
 
+class Inventory(Base):
+    __tablename__ = "inventory"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(150), nullable=False)
+    price: Mapped[float] = mapped_column(Float, nullable=False)
+
+    # the same part can be used on many tickets
+    service_tickets: Mapped[List["ServiceTicket"]] = relationship(
+        secondary=ticket_inventory, back_populates="parts"
+    )
+
+
 class ServiceTicket(Base):
     __tablename__ = "service_tickets"
 
@@ -70,4 +97,9 @@ class ServiceTicket(Base):
     # the mechanics assigned to this ticket
     mechanics: Mapped[List["Mechanic"]] = relationship(
         secondary=service_mechanic, back_populates="service_tickets"
+    )
+
+    # the parts used on this ticket
+    parts: Mapped[List["Inventory"]] = relationship(
+        secondary=ticket_inventory, back_populates="service_tickets"
     )

@@ -5,6 +5,7 @@ from sqlalchemy import select
 from . import mechanics_bp
 from .schemas import mechanic_schema, mechanics_schema
 from application.models import Mechanic, db
+from application.extensions import cache
 
 
 # CREATE
@@ -24,9 +25,37 @@ def create_mechanic():
 
 # READ all
 @mechanics_bp.route("/", methods=["GET"])
+# Cached because the mechanic list barely ever changes but gets read a lot.
+# The first request hits the database, then everything for the next 30 seconds
+# comes straight out of the cache instead of running the query again.
+@cache.cached(timeout=30)
 def get_mechanics():
     mechanics = db.session.execute(select(Mechanic)).scalars().all()
     return mechanics_schema.jsonify(mechanics), 200
+
+
+# READ - mechanics ranked by how many tickets they have worked
+@mechanics_bp.route("/most-tickets", methods=["GET"])
+def most_tickets():
+    mechanics = db.session.execute(select(Mechanic)).scalars().all()
+
+    # the relationship gives us a list, so len() tells us how many tickets each
+    # mechanic is on. reverse=True puts the busiest mechanic first.
+    mechanics.sort(key=lambda mechanic: len(mechanic.service_tickets), reverse=True)
+
+    # build the response by hand so we can include the ticket count
+    result = []
+    for mechanic in mechanics:
+        result.append({
+            "id": mechanic.id,
+            "name": mechanic.name,
+            "email": mechanic.email,
+            "phone": mechanic.phone,
+            "salary": mechanic.salary,
+            "ticket_count": len(mechanic.service_tickets),
+        })
+
+    return jsonify(result), 200
 
 
 # UPDATE

@@ -1,9 +1,15 @@
 {
   "info": {
-    "name": "Mechanic Shop API",
-    "description": "Every endpoint for the Coding Temple Mechanic Shop API (Application Factory Pattern). Start the app with `python app.py`, then run these against http://127.0.0.1:5001. Create a customer and a mechanic before creating a service ticket.",
+    "name": "Mechanic Shop API - Advanced",
+    "description": "Every endpoint for the Coding Temple BE Module 1 Project. Start the app with `python app.py`, then run these against http://127.0.0.1:5001.\n\nOrder to follow: create a customer, then Login (which saves the token automatically), then create mechanics and inventory parts, then a service ticket, then assign/add.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
+  "variable": [
+    {
+      "key": "auth_token",
+      "value": ""
+    }
+  ],
   "item": [
     {
       "name": "Customers",
@@ -32,10 +38,10 @@
                 "customers"
               ]
             },
-            "description": "Create a customer. Email must be unique.",
+            "description": "Create a customer. Rate limited to 5 per hour. Password is load_only so it never comes back in a response.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Alice Nguyen\",\n  \"email\": \"alice@example.com\",\n  \"phone\": \"815-555-0100\"\n}",
+              "raw": "{\n  \"name\": \"Alice Nguyen\",\n  \"email\": \"alice@example.com\",\n  \"phone\": \"815-555-0100\",\n  \"password\": \"password123\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -46,12 +52,17 @@
           "response": []
         },
         {
-          "name": "Get All Customers",
+          "name": "Login (get token)",
           "request": {
-            "method": "GET",
-            "header": [],
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": {
-              "raw": "http://127.0.0.1:5001/customers/",
+              "raw": "http://127.0.0.1:5001/customers/login",
               "protocol": "http",
               "host": [
                 "127",
@@ -61,10 +72,58 @@
               ],
               "port": "5001",
               "path": [
-                "customers"
+                "customers",
+                "login"
               ]
             },
-            "description": "Retrieve every customer."
+            "description": "Returns an auth_token. The test script below saves it to the {{auth_token}} variable so the protected requests use it automatically. Rate limited to 10 per hour.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"alice@example.com\",\n  \"password\": \"password123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.auth_token) {",
+                  "    pm.collectionVariables.set('auth_token', body.auth_token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get All Customers (paginated)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://127.0.0.1:5001/customers/?page=1&per_page=10",
+              "protocol": "http",
+              "host": [
+                "127",
+                "0",
+                "0",
+                "1"
+              ],
+              "port": "5001",
+              "path": [
+                "customers",
+                "?page=1&per_page=10"
+              ]
+            },
+            "description": "Paginated. Change page and per_page in the query string."
           },
           "response": []
         },
@@ -88,22 +147,17 @@
                 "1"
               ]
             },
-            "description": "Retrieve one customer. 404 for a bad id."
+            "description": "One customer. 404 for a bad id."
           },
           "response": []
         },
         {
-          "name": "Update Customer",
+          "name": "My Tickets (token required)",
           "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "method": "GET",
+            "header": [],
             "url": {
-              "raw": "http://127.0.0.1:5001/customers/1",
+              "raw": "http://127.0.0.1:5001/customers/my-tickets",
               "protocol": "http",
               "host": [
                 "127",
@@ -114,13 +168,61 @@
               "port": "5001",
               "path": [
                 "customers",
-                "1"
+                "my-tickets"
               ]
             },
-            "description": "Update a customer by id.",
+            "description": "Returns the logged-in customer's service tickets. Needs a Bearer token; the id comes from the token, not the URL.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Customer (token required)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://127.0.0.1:5001/customers/",
+              "protocol": "http",
+              "host": [
+                "127",
+                "0",
+                "0",
+                "1"
+              ],
+              "port": "5001",
+              "path": [
+                "customers"
+              ]
+            },
+            "description": "Updates the logged-in customer. No id in the URL, it comes from the token.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Alice N.\",\n  \"email\": \"alice@example.com\",\n  \"phone\": \"815-555-0199\"\n}",
+              "raw": "{\n  \"name\": \"Alice N.\",\n  \"email\": \"alice@example.com\",\n  \"phone\": \"815-555-0199\",\n  \"password\": \"password123\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -131,12 +233,12 @@
           "response": []
         },
         {
-          "name": "Delete Customer",
+          "name": "Delete Customer (token required)",
           "request": {
             "method": "DELETE",
             "header": [],
             "url": {
-              "raw": "http://127.0.0.1:5001/customers/1",
+              "raw": "http://127.0.0.1:5001/customers/",
               "protocol": "http",
               "host": [
                 "127",
@@ -146,11 +248,20 @@
               ],
               "port": "5001",
               "path": [
-                "customers",
-                "1"
+                "customers"
               ]
             },
-            "description": "Delete a customer by id."
+            "description": "Deletes the logged-in customer. Their service tickets cascade delete too.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            }
           },
           "response": []
         }
@@ -197,7 +308,7 @@
           "response": []
         },
         {
-          "name": "Get All Mechanics",
+          "name": "Get All Mechanics (cached)",
           "request": {
             "method": "GET",
             "header": [],
@@ -215,7 +326,31 @@
                 "mechanics"
               ]
             },
-            "description": "Retrieve every mechanic."
+            "description": "Cached for 30 seconds. The first call queries the database, the rest come from the cache."
+          },
+          "response": []
+        },
+        {
+          "name": "Mechanics by Most Tickets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://127.0.0.1:5001/mechanics/most-tickets",
+              "protocol": "http",
+              "host": [
+                "127",
+                "0",
+                "0",
+                "1"
+              ],
+              "port": "5001",
+              "path": [
+                "mechanics",
+                "most-tickets"
+              ]
+            },
+            "description": "Mechanics ordered by how many tickets they have worked, most first. Includes a ticket_count field."
           },
           "response": []
         },
@@ -284,6 +419,157 @@
       ]
     },
     {
+      "name": "Inventory",
+      "item": [
+        {
+          "name": "Create Part",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://127.0.0.1:5001/inventory/",
+              "protocol": "http",
+              "host": [
+                "127",
+                "0",
+                "0",
+                "1"
+              ],
+              "port": "5001",
+              "path": [
+                "inventory"
+              ]
+            },
+            "description": "Add a part to inventory.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Brake Pads\",\n  \"price\": 89.99\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Parts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://127.0.0.1:5001/inventory/",
+              "protocol": "http",
+              "host": [
+                "127",
+                "0",
+                "0",
+                "1"
+              ],
+              "port": "5001",
+              "path": [
+                "inventory"
+              ]
+            },
+            "description": "Every part in inventory."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Part by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://127.0.0.1:5001/inventory/1",
+              "protocol": "http",
+              "host": [
+                "127",
+                "0",
+                "0",
+                "1"
+              ],
+              "port": "5001",
+              "path": [
+                "inventory",
+                "1"
+              ]
+            },
+            "description": "One part. 404 for a bad id."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Part",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://127.0.0.1:5001/inventory/1",
+              "protocol": "http",
+              "host": [
+                "127",
+                "0",
+                "0",
+                "1"
+              ],
+              "port": "5001",
+              "path": [
+                "inventory",
+                "1"
+              ]
+            },
+            "description": "Update a part by id.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Brake Pads (Ceramic)\",\n  \"price\": 109.99\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Part",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "http://127.0.0.1:5001/inventory/1",
+              "protocol": "http",
+              "host": [
+                "127",
+                "0",
+                "0",
+                "1"
+              ],
+              "port": "5001",
+              "path": [
+                "inventory",
+                "1"
+              ]
+            },
+            "description": "Delete a part by id."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Service Tickets",
       "item": [
         {
@@ -324,7 +610,69 @@
           "response": []
         },
         {
-          "name": "Assign Mechanic to Ticket",
+          "name": "Get All Service Tickets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://127.0.0.1:5001/service-tickets/",
+              "protocol": "http",
+              "host": [
+                "127",
+                "0",
+                "0",
+                "1"
+              ],
+              "port": "5001",
+              "path": [
+                "service-tickets"
+              ]
+            },
+            "description": "Every ticket, each with its assigned mechanics and parts nested."
+          },
+          "response": []
+        },
+        {
+          "name": "Edit Ticket (add/remove mechanics)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "http://127.0.0.1:5001/service-tickets/1/edit",
+              "protocol": "http",
+              "host": [
+                "127",
+                "0",
+                "0",
+                "1"
+              ],
+              "port": "5001",
+              "path": [
+                "service-tickets",
+                "1",
+                "edit"
+              ]
+            },
+            "description": "Adds and removes several mechanics in one request using the ticket.mechanics list.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"add_ids\": [\n    1,\n    2\n  ],\n  \"remove_ids\": [\n    3\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Assign Mechanic",
           "request": {
             "method": "PUT",
             "header": [],
@@ -345,12 +693,12 @@
                 "1"
               ]
             },
-            "description": "Adds the mechanic to the ticket's mechanics list. 400 if already assigned."
+            "description": "Adds one mechanic. 400 if already assigned."
           },
           "response": []
         },
         {
-          "name": "Remove Mechanic from Ticket",
+          "name": "Remove Mechanic",
           "request": {
             "method": "PUT",
             "header": [],
@@ -371,17 +719,17 @@
                 "1"
               ]
             },
-            "description": "Removes the mechanic from the ticket. 400 if they were not on it."
+            "description": "Removes one mechanic. 400 if they were not on the ticket."
           },
           "response": []
         },
         {
-          "name": "Get All Service Tickets",
+          "name": "Add Part to Ticket",
           "request": {
-            "method": "GET",
+            "method": "PUT",
             "header": [],
             "url": {
-              "raw": "http://127.0.0.1:5001/service-tickets/",
+              "raw": "http://127.0.0.1:5001/service-tickets/1/add-part/1",
               "protocol": "http",
               "host": [
                 "127",
@@ -391,10 +739,13 @@
               ],
               "port": "5001",
               "path": [
-                "service-tickets"
+                "service-tickets",
+                "1",
+                "add-part",
+                "1"
               ]
             },
-            "description": "Retrieve every ticket, each with its list of assigned mechanics."
+            "description": "Adds a single inventory part to the ticket. 400 if the part is already on it."
           },
           "response": []
         }
