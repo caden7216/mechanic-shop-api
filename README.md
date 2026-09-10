@@ -8,6 +8,8 @@ It manages **customers**, **mechanics**, **service tickets**, and **inventory**,
 with token authentication, rate limiting, caching, pagination, and advanced
 relationship queries.
 
+Every route is documented with **Swagger** and tested with **unittest**.
+
 ## Setup
 
 ### 1. Install
@@ -67,10 +69,17 @@ mechanic-shop-api/
 ├── setup_db.py                  # one-time database + table setup
 ├── test_endpoints.py            # runs every endpoint against SQLite
 ├── mechanic_shop.postman_collection.json
+├── tests/                       # the unittest test cases
+│   ├── test_customers.py
+│   ├── test_mechanics.py
+│   ├── test_inventory.py
+│   └── test_service_tickets.py
 └── application/
     ├── __init__.py              # create_app() factory, registers blueprints
     ├── extensions.py            # Marshmallow, Limiter, Cache
     ├── models.py                # Customer, Mechanic, ServiceTicket, Inventory + 2 junction tables
+    ├── static/
+    │   └── swagger.yaml         # the API documentation
     ├── utils/
     │   └── util.py              # encode_token() and the token_required decorator
     └── blueprints/
@@ -262,10 +271,73 @@ In Postman: **Import** → drop the file in → start the app → send.
 Suggested order: create a customer → **Login** (the token saves itself) → create
 mechanics → create parts → create a ticket → edit/assign/add-part.
 
+## API Documentation (Swagger)
+
+Every one of the 23 routes is documented with **Flask-Swagger-UI**. Start the
+app and open:
+
+```
+http://127.0.0.1:5001/api/docs
+```
+
+The docs themselves live in `application/static/swagger.yaml`, and the docs
+page is registered as a blueprint in `create_app()`.
+
+Each route has:
+
+- a **path** — the endpoint, the request type, a tag, a summary, a description,
+  its parameters, and the responses it can send back with examples
+- **definitions** — the shape of the data going in (POST and PUT only) and the
+  shape of the data coming back out
+
+The token authenticated routes (`my-tickets`, update customer, delete customer)
+show a padlock in the docs. To try them out in the browser:
+
+1. Send **POST `/customers/`** to make a customer
+2. Send **POST `/customers/login`** and copy the `auth_token`
+3. Click the green **Authorize** button at the top
+4. Type `Bearer <paste the token>` and hit Authorize
+
+Now the padlocked routes work from the docs page too.
+
 ## Testing
 
-`test_endpoints.py` runs 56 checks against a temporary SQLite database so you
-can verify everything without touching MySQL:
+### Unit tests
+
+The `tests/` folder has a test file for each blueprint, with at least one test
+for every route plus negative tests for the error cases:
+
+```bash
+python -m unittest discover tests
+```
+
+**40 tests, all passing.**
+
+| File | Tests | Covers |
+| --- | --- | --- |
+| `test_customers.py` | 11 | login, my-tickets, create, get all, get one, update, delete |
+| `test_mechanics.py` | 8 | create, get all, most-tickets, update, delete |
+| `test_inventory.py` | 9 | create, get all, get one, update, delete |
+| `test_service_tickets.py` | 12 | create, get all, edit, add-part, assign/remove mechanic |
+
+The negative tests check things like a payload with a required field missing
+(400), an id that does not exist (404), a token authenticated route with no
+token (401), a bad email and password (401), and adding the same mechanic or
+part to a ticket twice (400).
+
+The tests run against `TestingConfig` in `config.py`, which uses a throwaway
+SQLite database instead of MySQL so they never touch the real data. It also
+sets `RATELIMIT_ENABLED = False`, because the login and create customer routes
+are rate limited and the tests would start getting 429s partway through.
+
+Tests that need data to already exist (logging in needs a customer, deleting a
+mechanic needs a mechanic) create it in `setUp()`, which runs before every
+single test.
+
+### Manual script
+
+`test_endpoints.py` is the older script from Module 1. It runs 56 checks
+against a temporary SQLite database in one go:
 
 ```bash
 python test_endpoints.py

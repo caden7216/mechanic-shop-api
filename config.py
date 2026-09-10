@@ -15,3 +15,15 @@ class DevelopmentConfig:
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     DEBUG = True
+
+
+class TestingConfig:
+    # sqlite is a lightweight database that is perfect for testing, and it
+    # keeps the tests away from the real MySQL data.
+    SQLALCHEMY_DATABASE_URI = "sqlite:///testing.db"
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    DEBUG = True
+    CACHE_TYPE = "SimpleCache"
+    # the rate limits would start returning 429 partway through the tests,
+    # so they get turned off while testing
+    RATELIMIT_ENABLED = False
